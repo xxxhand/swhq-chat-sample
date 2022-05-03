@@ -15,8 +15,6 @@ import { ErrorCodes } from '../../domain/enums/error-codes';
 import { InjectorCodes } from '../../domain/enums/injector-codes';
 import { JoinRoomRequest } from '../../domain/value-objects/join-room-request';
 import { IChatRoomRepository } from '../../domain/repositories/i-chat-room-repository';
-import { ITokenRepository } from '../../domain/repositories/i-token-repository';
-import { IClientRepository } from '../../domain/repositories/i-client-repository';
 import { AbstractSocketHandler } from './abstract-socket-handler';
 
 @injectable()
@@ -24,43 +22,13 @@ export class ChatRoomHandler extends AbstractSocketHandler {
 
 	@lazyInject(InjectorCodes.I_CHAT_ROOM_REPO)
 	private _roomRepo: TNullable<IChatRoomRepository>;
-	@lazyInject(InjectorCodes.I_CLIENT_REPO)
-	private _clietRepo: TNullable<IClientRepository>;
-	@lazyInject(InjectorCodes.I_TOKEN_REPO)
-	private _tokenRepo: TNullable<ITokenRepository>;
+
 
 	constructor() {
 		super('chat-room');
 	}
 	public onAuthorize = async (socket: Socket, next: (err?: Error) => void): Promise<void> => {
-		try {
-			const { id, token } = socket.handshake.query;
-			LOGGER.info(`Check authrization of ${id}`);
-			if (!CustomValidator.nonEmptyString(<string>id)) {
-				throw new CustomError(cmmErr.ERR_UN_AUTH);
-			}
-			LOGGER.info(`Check token ${token}`);
-			const oToken = await this._tokenRepo?.findOne(<string>token);
-			if (!oToken) {
-				LOGGER.info(`${token} not found`);
-				throw new CustomError(cmmErr.ERR_UN_AUTH);
-			}
-			LOGGER.info(`Find client credential ${oToken.clientId}`);
-			const oClient = await this._clietRepo?.findOne(oToken.clientId);
-			if (!oClient) {
-				LOGGER.info(`${token} not found`);
-				throw new CustomError(cmmErr.ERR_UN_AUTH);
-			}
-			const acceptedIdentity = await this._clietRepo?.checkIdentity(<string>id, oClient);
-			if (!acceptedIdentity) {
-				LOGGER.info(`${id} validate identity fail`);
-				throw new CustomError(cmmErr.ERR_UN_AUTH);
-			}
-
-			return next();
-		} catch (ex) {
-			return next(CustomError.fromInstance(ex));
-		}
+		return next();
 	}
 	public onConnection = (socket: Socket): void => {
 		LOGGER.info(`Client ${socket.id} connected to ${this.path}...`);
