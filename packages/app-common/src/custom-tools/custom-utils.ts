@@ -3,7 +3,7 @@ import * as lodash from 'lodash';
 
 const _BASIC_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 const _COMPLEX_CHARS = `${_BASIC_CHARS}!@#$%&*.+-;`;
-const _NUMS = '0123456789';
+const _NUMS = '0123';
 const _SALT_ROUNDS = 9;
 
 function _generateRandomValues(len: number, chars: string): string {

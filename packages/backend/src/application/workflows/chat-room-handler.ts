@@ -12,15 +12,22 @@ import { RoomEvents } from '../../domain/enums/room-event-codes';
 import { UserEntity } from '../../domain/entities/user-entiy';
 import { JoinRoomRequest } from '../../domain/value-objects/join-room-request';
 import { SendMessageRequest } from '../../domain/value-objects/send-message-request';
+import {
+	AdvertisementLocation,
+	AdvertisementMessage,
+	AdvertisementType,
+} from '../../domain/value-objects/advertisement-message';
 import { AbstractSocketHandler } from './abstract-socket-handler';
 
 @injectable()
 export class ChatRoomHandler extends AbstractSocketHandler {
 	private _users: UserEntity[] = [];
-	private _pushInterval: number = 10;
+	private _advertisements: AdvertisementMessage[] = [];
+	private _pushIntervalInSeconds: number = 10;
 
 	constructor() {
 		super('chat-room');
+		this._initAdvertisements();
 		this._runInteval();
 	}
 	public onAuthorize = async (socket: Socket, next: (err?: Error) => void): Promise<void> => {
@@ -46,7 +53,7 @@ export class ChatRoomHandler extends AbstractSocketHandler {
 						return;
 					}
 					LOGGER.info(`Send to specific user ${mReq.sendTo}`);
-					const targetClient = socket.nsp.sockets.get(user?.connectionId);
+					const targetClient = this.getClientById(user?.connectionId);
 					targetClient?.emit(RoomEvents.SEND_MSG_RES, res);
 				} finally {
 					socket.emit(RoomEvents.SEND_MSG_RES, res);
@@ -79,26 +86,50 @@ export class ChatRoomHandler extends AbstractSocketHandler {
 			});
 	}
 
+	private _initAdvertisements = (): void => {
+		const m0 = new AdvertisementMessage();
+		m0.type = AdvertisementType.BROADCAST;
+		m0.content = 'I am advertisement 0';
+		m0.location = AdvertisementLocation.RT;
+		this._advertisements.push(m0);
+
+		const m1 = new AdvertisementMessage();
+		m1.type = AdvertisementType.ADVERTISEMENT;
+		m1.img = 'I am advertisement 1';
+		m1.linkUrl = 'https://google.com';
+		m1.location = AdvertisementLocation.LM;
+		this._advertisements.push(m1);
+
+	}
+
 	private _pushAdvertisementToUser = (): void => {
 		if (!CustomValidator.nonEmptyArray(this._users)) {
+			LOGGER.info(`User is empty`);
 			return;
 		}
+
+		let msgIdx: number = Number.parseInt(CustomUtils.generateRandomNumbers(1));
+		if (msgIdx < 0 || msgIdx > this._advertisements.length - 1) {
+			msgIdx = 0;
+		}
+		const msg = this._advertisements[msgIdx];
+
 		let idx: number = Number.parseInt(CustomUtils.generateRandomNumbers(1));
 		if (idx < 0 || idx > this._users.length - 1) {
 			idx = 0;
 		}
-		const res = new CustomResult<string>();
 		const user = this._users[idx];
-		const targetClient = this.rootServer?.nsp.sockets.get(user.connectionId);
-		res.withResult('Hello world');
-		targetClient?.emit(RoomEvents.SEND_MSG_RES, res);
-		
+
+		const targetClient = this.getClientById(user.connectionId);
+
+		LOGGER.info(`Send ${msgIdx} to ${targetClient?.id}`);
+		targetClient?.emit(RoomEvents.SEND_MSG_RES, new CustomResult().withResult(msg));
 
 	}
 
 	private _runInteval = (): void => {
 		setInterval(() => {
 			this._pushAdvertisementToUser();
-		}, this._pushInterval * 1000);
+		}, this._pushIntervalInSeconds * 1000);
 	}
 }

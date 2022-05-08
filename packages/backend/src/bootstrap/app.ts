@@ -21,8 +21,8 @@ export class App {
 	}
 
 	public static tryInitial = async () => {
-		await AppInitializer.tryDbClient();
-		await AppInitializer.tryRedis();
+		// await AppInitializer.tryDbClient();
+		// await AppInitializer.tryRedis();
 		AppInitializer.tryInjector();
 	}
 
