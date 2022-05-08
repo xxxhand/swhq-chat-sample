@@ -8,7 +8,7 @@ import { AppWebSocket } from '../bootstrap/app-web-socket';
 
 async function main() {
 	LOGGER.info('Initial server start...');
-	await App.tryInitial();
+	// await App.tryInitial();
 	const _port = Number.parseInt(customArgvs.port, 10);
 	const _core = http.createServer(new App().app);
 

@@ -5,6 +5,8 @@ import {
 	CustomClassBuilder,
 	CustomResult,
 	CustomError,
+	CustomValidator,
+	CustomUtils,
 } from '@demo/app-common';
 import { RoomEvents } from '../../domain/enums/room-event-codes';
 import { UserEntity } from '../../domain/entities/user-entiy';
@@ -15,9 +17,11 @@ import { AbstractSocketHandler } from './abstract-socket-handler';
 @injectable()
 export class ChatRoomHandler extends AbstractSocketHandler {
 	private _users: UserEntity[] = [];
+	private _pushInterval: number = 10;
 
 	constructor() {
 		super('chat-room');
+		this._runInteval();
 	}
 	public onAuthorize = async (socket: Socket, next: (err?: Error) => void): Promise<void> => {
 		LOGGER.info(`Connection id ${socket.id} connecting...`);
@@ -30,19 +34,24 @@ export class ChatRoomHandler extends AbstractSocketHandler {
 
 				const mReq = <SendMessageRequest>CustomClassBuilder.build(SendMessageRequest, msg);
 				const res = new CustomResult().withResult(mReq);
-				if (!mReq.hasSpecificUser()) {
-					LOGGER.info(`Send to all user`);
-					socket.to(mReq.chatRoomId).emit(RoomEvents.SEND_MSG_RES, res);
-					return;
+				try {
+					if (!mReq.hasSpecificUser()) {
+						LOGGER.info(`Send to all user`);
+						socket.to(mReq.chatRoomId).emit(RoomEvents.SEND_MSG_RES, res);
+						return;
+					}
+					const user = this._users.find((x) => x.account === mReq.sendTo);
+					if (!user) {
+						socket.to(mReq.chatRoomId).emit(RoomEvents.SEND_MSG_RES, res);
+						return;
+					}
+					LOGGER.info(`Send to specific user ${mReq.sendTo}`);
+					const targetClient = socket.nsp.sockets.get(user?.connectionId);
+					targetClient?.emit(RoomEvents.SEND_MSG_RES, res);
+				} finally {
+					socket.emit(RoomEvents.SEND_MSG_RES, res);
 				}
-				const user = this._users.find((x) => x.account === mReq.sendTo);
-				if (!user) {
-					socket.to(mReq.chatRoomId).emit(RoomEvents.SEND_MSG_RES, res);
-					return;
-				}
-				LOGGER.info(`Send to specific user ${mReq.sendTo}`);
-				const targetClient = socket.nsp.sockets.get(user?.connectionId);
-				targetClient?.emit(RoomEvents.SEND_MSG_RES, res);
+
 			})
 			.on(RoomEvents.JOIN_ROOM, async (msg: any): Promise<void> => {
 				const res = new CustomResult();
@@ -68,5 +77,28 @@ export class ChatRoomHandler extends AbstractSocketHandler {
 					socket.emit(RoomEvents.JOIN_ROOM_RES, res);
 				}
 			});
+	}
+
+	private _pushAdvertisementToUser = (): void => {
+		if (!CustomValidator.nonEmptyArray(this._users)) {
+			return;
+		}
+		let idx: number = Number.parseInt(CustomUtils.generateRandomNumbers(1));
+		if (idx < 0 || idx > this._users.length - 1) {
+			idx = 0;
+		}
+		const res = new CustomResult<string>();
+		const user = this._users[idx];
+		const targetClient = this.rootServer?.nsp.sockets.get(user.connectionId);
+		res.withResult('Hello world');
+		targetClient?.emit(RoomEvents.SEND_MSG_RES, res);
+		
+
+	}
+
+	private _runInteval = (): void => {
+		setInterval(() => {
+			this._pushAdvertisementToUser();
+		}, this._pushInterval * 1000);
 	}
 }
