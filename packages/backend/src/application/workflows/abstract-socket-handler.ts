@@ -1,5 +1,5 @@
 import { injectable } from 'inversify';
-import { Socket, Server } from 'socket.io';
+import { Socket, Server, Namespace } from 'socket.io';
 import { CustomError, ICodeObject, TNullable } from '@demo/app-common';
 
 @injectable()
@@ -17,6 +17,10 @@ export abstract class AbstractSocketHandler {
 
 	getClientById(id: string): TNullable<Socket> {
 		return this._rootServer?.of(this.path).sockets.get(id);
+	}
+
+	getNameSpace(): TNullable<Namespace> {
+		return this._rootServer?.of(this.path);
 	}
 
 	useServer(server: Server): void {

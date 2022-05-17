@@ -3,4 +3,5 @@ export class UserEntity {
   public name: string = '';
   public roomId: string = '';
   public connectionId: string = '';
+  public tags: string[] = [];
 }

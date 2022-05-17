@@ -24,9 +24,16 @@ export class ChatRoomHandler extends AbstractSocketHandler {
 	private _users: UserEntity[] = [];
 	private _advertisements: AdvertisementMessage[] = [];
 	private _pushIntervalInSeconds: number = 10;
+	private _userTags: Map<number, string[]> = new Map();
+	private _roomId: string = 'aabc';
 
 	constructor() {
 		super('chat-room');
+		this._userTags
+			.set(0, ['A', 'B'])
+			.set(1, ['C', 'D'])
+			.set(2, ['A', 'E'])
+			.set(3, ['E']);
 		this._initAdvertisements();
 		this._runInteval();
 	}
@@ -71,11 +78,12 @@ export class ChatRoomHandler extends AbstractSocketHandler {
 						user.account = mReq.userId;
 						user.name = mReq.userName;
 						user.roomId = mReq.chatRoomId;
+						user.tags = this._userTags.get(Number.parseInt(CustomUtils.generateRandomNumbers(1))) as string[];
 						this._users.push(user);
 					}
 					user.connectionId = socket.id;
 
-					socket.join(mReq.chatRoomId);
+					socket.join(this._roomId);
 					LOGGER.info(JSON.stringify(this._users));
 					res.withResult(this._users);
 				} catch (ex) {
@@ -88,18 +96,19 @@ export class ChatRoomHandler extends AbstractSocketHandler {
 
 	private _initAdvertisements = (): void => {
 		const m0 = new AdvertisementMessage();
+		m0.acceptedTags = ['E'];
 		m0.type = AdvertisementType.BROADCAST;
 		m0.content = 'I am advertisement 0';
 		m0.location = AdvertisementLocation.RT;
 		this._advertisements.push(m0);
 
 		const m1 = new AdvertisementMessage();
+		m1.acceptedTags = ['B', 'D'];
 		m1.type = AdvertisementType.ADVERTISEMENT;
 		m1.img = 'I am advertisement 1';
 		m1.linkUrl = 'https://google.com';
 		m1.location = AdvertisementLocation.LM;
 		this._advertisements.push(m1);
-
 	}
 
 	private _pushAdvertisementToUser = (): void => {
@@ -114,16 +123,20 @@ export class ChatRoomHandler extends AbstractSocketHandler {
 		}
 		const msg = this._advertisements[msgIdx];
 
-		let idx: number = Number.parseInt(CustomUtils.generateRandomNumbers(1));
-		if (idx < 0 || idx > this._users.length - 1) {
-			idx = 0;
-		}
-		const user = this._users[idx];
+		LOGGER.info(`Send message ${msgIdx}`);
+		this.getNameSpace()?.to(this._roomId).emit(RoomEvents.SEND_MSG_RES, new CustomResult().withResult(msg));
+		
 
-		const targetClient = this.getClientById(user.connectionId);
+		// let idx: number = Number.parseInt(CustomUtils.generateRandomNumbers(1));
+		// if (idx < 0 || idx > this._users.length - 1) {
+		// 	idx = 0;
+		// }
+		// const user = this._users[idx];
 
-		LOGGER.info(`Send ${msgIdx} to ${targetClient?.id}`);
-		targetClient?.emit(RoomEvents.SEND_MSG_RES, new CustomResult().withResult(msg));
+		// const targetClient = this.getClientById(user.connectionId);
+
+		// LOGGER.info(`Send ${msgIdx} to ${targetClient?.id}`);
+		// targetClient?.emit(RoomEvents.SEND_MSG_RES, new CustomResult().withResult(msg));
 
 	}
 

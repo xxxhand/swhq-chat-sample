@@ -2,7 +2,6 @@ export enum AdvertisementLocation {
   LT = 'LT',
   RT = 'RT',
   LM = 'LM',
-  LR = 'LR',
 };
 
 export enum AdvertisementType {
@@ -11,6 +10,7 @@ export enum AdvertisementType {
 };
 
 export class AdvertisementMessage {
+  public acceptedTags: string[] = [];
   public content: string = '';
   public img: string = '';
   public linkUrl: string = '';
